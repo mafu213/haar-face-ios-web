@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#101820">
+  <title>基于 Haar 特征的人脸检测系统</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <p class="eyebrow">Face Detection Web App</p>
+      <h1>基于 Haar 特征的人脸检测系统</h1>
+      <p class="subtitle">HTML5 Camera + OpenCV.js + Haar Cascade</p>
+    </header>
+
+    <section class="camera-panel" aria-label="摄像头检测区域">
+      <div class="video-stage">
+        <video id="cameraVideo" autoplay playsinline webkit-playsinline muted></video>
+        <canvas id="outputCanvas"></canvas>
+        <div id="placeholder" class="placeholder">
+          <span>等待开启摄像头</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="操作按钮">
+      <button id="startBtn" class="primary-btn" type="button">开启摄像头</button>
+      <button id="stopBtn" class="secondary-btn" type="button" disabled>停止检测</button>
+      <button id="captureBtn" class="secondary-btn" type="button" disabled>截图保存</button>
+    </section>
+
+    <section class="status-panel" aria-label="状态栏">
+      <div class="status-row">
+        <span>OpenCV</span>
+        <strong id="opencvStatus">加载中</strong>
+      </div>
+      <div class="status-row">
+        <span>摄像头</span>
+        <strong id="cameraStatus">未开启</strong>
+      </div>
+      <div class="status-row">
+        <span>人脸数量</span>
+        <strong id="faceCount">0</strong>
+      </div>
+      <p id="message" class="message">请点击“开启摄像头”开始检测。</p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

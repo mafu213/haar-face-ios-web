@@ -219,11 +219,12 @@ function processFrame() {
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
     cv.equalizeHist(gray, gray);
 
-    const minSize = new cv.Size(30, 30);
-    classifier.detectMultiScale(gray, faces, 1.1, 3, 0, minSize);
+    const minSize = new cv.Size(90, 90);
+    const maxSize = new cv.Size(420, 420);
+    classifier.detectMultiScale(gray, faces, 1.2, 7, 0, minSize, maxSize);
 
-    drawFaces(faces);
-    setFaceCount(faces.size());
+    const validFaceCount = drawFaces(faces);
+    setFaceCount(validFaceCount);
   } catch (error) {
     setMessage(`检测过程出错：${error.message}`, "error");
   } finally {
@@ -240,13 +241,31 @@ function drawFaces(faces) {
   ctx.fillStyle = "#ff2222";
   ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
 
+  const minArea = canvas.width * canvas.height * 0.02;
+  const maxArea = canvas.width * canvas.height * 0.45;
+  let validFaceCount = 0;
+
   for (let i = 0; i < faces.size(); i += 1) {
     const face = faces.get(i);
+    const area = face.width * face.height;
+    const ratio = face.width / face.height;
+
+    if (area < minArea || area > maxArea) {
+      continue;
+    }
+
+    if (ratio < 0.75 || ratio > 1.35) {
+      continue;
+    }
+
+    validFaceCount += 1;
     ctx.strokeRect(face.x, face.y, face.width, face.height);
 
     const labelY = Math.max(face.y - 8, 24);
     ctx.fillText("Face", face.x, labelY);
   }
+
+  return validFaceCount;
 }
 
 function stopDetection() {

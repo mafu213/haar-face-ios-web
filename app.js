@@ -9,10 +9,12 @@ const video = document.getElementById("cameraVideo");
 const canvas = document.getElementById("outputCanvas");
 const placeholder = document.getElementById("placeholder");
 const startBtn = document.getElementById("startBtn");
+const switchCameraBtn = document.getElementById("switchCameraBtn");
 const stopBtn = document.getElementById("stopBtn");
 const captureBtn = document.getElementById("captureBtn");
 const opencvStatus = document.getElementById("opencvStatus");
 const cameraStatus = document.getElementById("cameraStatus");
+const facingModeStatus = document.getElementById("facingModeStatus");
 const faceCount = document.getElementById("faceCount");
 const message = document.getElementById("message");
 const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -24,6 +26,8 @@ let stream = null;
 let detectTimer = null;
 let detectBusy = false;
 let opencvReadyHandled = false;
+let currentFacingMode = "user";
+let isSwitchingCamera = false;
 
 function setMessage(text, type = "") {
   message.textContent = text;
@@ -38,6 +42,31 @@ function setControls(active) {
   startBtn.disabled = active || !cvReady || !modelReady;
   stopBtn.disabled = !active;
   captureBtn.disabled = !active;
+  updateFacingModeUI();
+}
+
+function getFacingModeLabel(facingMode = currentFacingMode) {
+  return facingMode === "environment" ? "后置" : "前置";
+}
+
+function getNextFacingMode() {
+  return currentFacingMode === "user" ? "environment" : "user";
+}
+
+function updateFacingModeUI() {
+  facingModeStatus.textContent = getFacingModeLabel();
+  switchCameraBtn.textContent = currentFacingMode === "user"
+    ? "切换到后置摄像头"
+    : "切换到前置摄像头";
+  switchCameraBtn.disabled = isSwitchingCamera;
+}
+
+function isCameraActive() {
+  return Boolean(stream && stream.getTracks().some((track) => track.readyState === "live"));
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function loadOpenCv() {
@@ -132,16 +161,16 @@ async function loadHaarModel() {
   }
 }
 
-async function startCamera() {
+async function startCamera(facingMode = currentFacingMode) {
   if (!cvReady || !modelReady || !classifier) {
     setMessage("OpenCV 或 Haar 模型尚未准备好，请稍后再试。", "error");
-    return;
+    return false;
   }
 
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: "user",
+        facingMode: { ideal: facingMode },
         width: { ideal: 640 },
         height: { ideal: 480 }
       },
@@ -153,6 +182,8 @@ async function startCamera() {
     await waitForVideoMetadata();
 
     resizeCanvasToVideo();
+    currentFacingMode = facingMode;
+    updateFacingModeUI();
     placeholder.classList.add("hidden");
     cameraStatus.textContent = "已开启";
     setFaceCount(0);
@@ -160,20 +191,25 @@ async function startCamera() {
     setMessage("摄像头已开启，正在进行实时检测。", "ok");
 
     startDetectionLoop();
+    return true;
   } catch (error) {
     cameraStatus.textContent = "开启失败";
     setControls(false);
     setMessage(`摄像头开启失败：${getCameraErrorMessage(error)}`, "error");
+    return false;
   }
 }
 
 function waitForVideoMetadata() {
-  if (video.videoWidth > 0 && video.videoHeight > 0) {
+  if (video.readyState >= HTMLMediaElement.HAVE_METADATA && video.videoWidth > 0 && video.videoHeight > 0) {
     return Promise.resolve();
   }
 
   return new Promise((resolve) => {
-    video.onloadedmetadata = () => resolve();
+    video.onloadedmetadata = () => {
+      video.onloadedmetadata = null;
+      resolve();
+    };
   });
 }
 
@@ -268,9 +304,7 @@ function drawFaces(faces) {
   return validFaceCount;
 }
 
-function stopDetection() {
-  stopDetectionLoopOnly();
-
+function stopCameraOnly() {
   if (stream) {
     stream.getTracks().forEach((track) => track.stop());
     stream = null;
@@ -278,6 +312,66 @@ function stopDetection() {
 
   video.pause();
   video.srcObject = null;
+}
+
+async function switchCamera() {
+  if (isSwitchingCamera) {
+    return;
+  }
+
+  const nextFacingMode = getNextFacingMode();
+
+  if (!isCameraActive()) {
+    currentFacingMode = nextFacingMode;
+    updateFacingModeUI();
+    setMessage(`已选择${getFacingModeLabel()}摄像头，点击“开启摄像头”后生效。`, "ok");
+    return;
+  }
+
+  const previousFacingMode = currentFacingMode;
+  isSwitchingCamera = true;
+  updateFacingModeUI();
+  cameraStatus.textContent = "切换中";
+  setMessage(`正在切换到${getFacingModeLabel(nextFacingMode)}摄像头。`);
+
+  stopDetectionLoopOnly();
+  stopCameraOnly();
+  currentFacingMode = nextFacingMode;
+  updateFacingModeUI();
+
+  await wait(200);
+
+  try {
+    const switched = await startCamera(currentFacingMode);
+    if (switched) {
+      setMessage(`已切换到${getFacingModeLabel()}摄像头，正在检测。`, "ok");
+      return;
+    }
+
+    currentFacingMode = previousFacingMode;
+    updateFacingModeUI();
+    cameraStatus.textContent = "回退中";
+    await wait(200);
+
+    const recovered = await startCamera(previousFacingMode);
+    if (recovered) {
+      setMessage("摄像头切换失败，已回退。", "error");
+      return;
+    }
+
+    placeholder.classList.remove("hidden");
+    setFaceCount(0);
+    setControls(false);
+    setMessage("摄像头切换失败，回退也失败，请刷新页面后重试。", "error");
+  } finally {
+    isSwitchingCamera = false;
+    updateFacingModeUI();
+  }
+}
+
+function stopDetection() {
+  stopDetectionLoopOnly();
+  stopCameraOnly();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   placeholder.classList.remove("hidden");
   cameraStatus.textContent = "摄像头已关闭";
@@ -349,10 +443,12 @@ function getCameraErrorMessage(error) {
   return error.message || "未知错误";
 }
 
-startBtn.addEventListener("click", startCamera);
+startBtn.addEventListener("click", () => startCamera());
+switchCameraBtn.addEventListener("click", switchCamera);
 stopBtn.addEventListener("click", stopDetection);
 captureBtn.addEventListener("click", captureScreenshot);
 window.addEventListener("pagehide", stopDetection);
 
+updateFacingModeUI();
 setControls(false);
 loadOpenCv();

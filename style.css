@@ -126,6 +126,10 @@ h1 {
   margin: 16px 0;
 }
 
+.controls button {
+  width: 100%;
+}
+
 button {
   min-height: 48px;
   border: 0;
@@ -211,7 +215,8 @@ button:disabled {
     grid-template-columns: 1fr 1fr;
   }
 
-  #startBtn {
+  #startBtn,
+  #switchCameraBtn {
     grid-column: 1 / -1;
   }
 }

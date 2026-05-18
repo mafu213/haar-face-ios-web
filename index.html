@@ -27,6 +27,7 @@
 
     <section class="controls" aria-label="操作按钮">
       <button id="startBtn" class="primary-btn" type="button">开启摄像头</button>
+      <button id="switchCameraBtn" class="secondary-btn" type="button">切换到后置摄像头</button>
       <button id="stopBtn" class="secondary-btn" type="button" disabled>停止检测</button>
       <button id="captureBtn" class="secondary-btn" type="button" disabled>截图保存</button>
     </section>
@@ -39,6 +40,10 @@
       <div class="status-row">
         <span>摄像头</span>
         <strong id="cameraStatus">未开启</strong>
+      </div>
+      <div class="status-row">
+        <span>当前摄像头</span>
+        <strong id="facingModeStatus">前置</strong>
       </div>
       <div class="status-row">
         <span>人脸数量</span>

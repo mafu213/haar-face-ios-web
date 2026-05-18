@@ -74,6 +74,16 @@ navigator.mediaDevices.getUserMedia({
 
 并且 `video` 标签已经设置 `autoplay`、`playsinline`、`webkit-playsinline`、`muted`，适配 iPhone 浏览器限制。
 
+## 前后摄像头切换说明
+
+本项目支持在 iPhone Safari/Chrome 中切换前置和后置摄像头。
+
+- 前置摄像头使用 `facingMode: "user"`。
+- 后置摄像头使用 `facingMode: "environment"`。
+- iOS Safari 上切换摄像头时，需要先停止旧的 `MediaStream track`，再重新请求新的摄像头，否则旧摄像头可能继续被占用。
+- 如果 iPhone 切换失败，可以刷新页面后重试。
+- 必须通过 HTTPS 打开 GitHub Pages 链接，普通本地文件方式或不安全地址可能无法调用摄像头。
+
 ## GitHub Pages 部署步骤
 
 1. 在 GitHub 新建一个仓库，例如 `haar-face-ios-web`。
